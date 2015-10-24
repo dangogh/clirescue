@@ -30,6 +30,9 @@ func makeRequest() []byte {
 	req, err := http.NewRequest("GET", URL, nil)
 	req.SetBasicAuth(currentUser.Username, currentUser.Password)
 	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Print(err)
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Print(err)
