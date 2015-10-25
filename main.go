@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/dangogh/clirescue/trackerapi"
 	"github.com/codegangsta/cli"
+	"github.com/dangogh/clirescue/trackerapi"
 )
 
 func main() {

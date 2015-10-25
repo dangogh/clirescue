@@ -1,6 +1,7 @@
 package trackerapi
 
 import (
+	"log"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,43 +13,61 @@ import (
 	"github.com/dangogh/clirescue/user"
 )
 
+const url          string     = "https://www.pivotaltracker.com/services/v5/me"
 var (
-	URL          string     = "https://www.pivotaltracker.com/services/v5/me"
-	FileLocation string     = homeDir() + "/.tracker"
+	tokenFile  string     = homeDir() + "/.tracker"
 	currentUser  *user.User = user.New()
 	Stdout       *os.File   = os.Stdout
 )
 
 func Me() {
-	setCredentials()
-	parse(makeRequest())
-	ioutil.WriteFile(FileLocation, []byte(currentUser.APIToken), 0644)
+	tok, err := ioutil.ReadFile(tokenFile)
+	if err != nil {
+		// assume file not found and use basic auth
+		// TODO: exit with error if other than file not found
+		setCredentials()
+		resp, err := makeRequest()
+		if err != nil {
+			log.Fatal(err)
+		}
+		tok, err = getToken(resp)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = ioutil.WriteFile(tokenFile, tok, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	currentUser.APIToken = string(tok)
 }
 
-func makeRequest() []byte {
+func makeRequest() ([]byte, error) {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", URL, nil)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
 	req.SetBasicAuth(currentUser.Username, currentUser.Password)
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Print(err)
+		return nil, err
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Print(err)
+		return nil, err
 	}
 	fmt.Printf("\n****\nAPI response: \n%s\n", string(body))
-	return body
+	return body, nil
 }
 
-func parse(body []byte) {
+func getToken(body []byte) ([]byte, error) {
 	var meResp = new(MeResponse)
 	err := json.Unmarshal(body, &meResp)
 	if err != nil {
-		fmt.Println("error:", err)
+		return nil, err
 	}
-
-	currentUser.APIToken = meResp.APIToken
+	return []byte(meResp.APIToken), nil
 }
 
 func setCredentials() {
